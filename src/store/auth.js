@@ -58,10 +58,13 @@ export const useAuthStore = defineStore('auth', {
           const userData = JSON.parse(savedUser);
           this.user = userData;
           this.isLoggedIn = true;
+          console.log('✅ User restored from localStorage:', userData.email);
         } catch (error) {
-          console.error('Error parsing saved user data:', error);
+          console.error('❌ Error parsing saved user data:', error);
           localStorage.removeItem('sinak_user');
         }
+      } else {
+        console.log('ℹ️ No saved user found in localStorage');
       }
     },
 
@@ -70,6 +73,7 @@ export const useAuthStore = defineStore('auth', {
       if (this.user) {
         this.user = { ...this.user, ...profileData };
         localStorage.setItem('sinak_user', JSON.stringify(this.user));
+        console.log('✅ User profile updated:', profileData);
       }
     },
   },

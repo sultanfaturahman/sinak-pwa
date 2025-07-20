@@ -1,0 +1,13 @@
+{
+  "name": "SiNaik PWA - Sistem Intervensi Terpandu UMKM",
+  "short_name": "SiNaik",
+  "description": "Sistem Intervensi Terpandu untuk membantu UMKM Indonesia meningkatkan literasi keuangan dan mendorong pertumbuhan bisnis",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#667eea",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "id",
+  "categories": ["business", "finance", "education"]
+}

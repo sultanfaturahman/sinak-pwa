@@ -1,68 +1,78 @@
 import {
+  getAuth,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signOut,
-  updateProfile
+  sendPasswordResetEmail
 } from 'firebase/auth';
-import { auth } from './firebase';
-import {
-  createUserDocument,
-  getUserDocument,
-  updateUserDocument,
-  handleFirestoreError
-} from './firestoreService';
+import app from './firebase';
+import { createUserDocument, getUserDocument } from './firestoreService';
 
-/**
- * Register new user with email, password, and business name
- * @param {string} email - User email
- * @param {string} password - User password
- * @param {string} namaUsaha - Business name
- * @returns {Object} User object with additional data
- */
+const auth = getAuth(app);
+
 export const registerUser = async (email, password, namaUsaha) => {
   try {
-    console.log('🔄 Starting user registration...');
-
-    // Create user with Firebase Auth
+    console.log('🔄 Creating new user account...');
     const userCredential = await createUserWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    console.log('✅ Firebase Auth user created:', user.uid);
+    console.log('✅ User account created successfully:', user.uid);
 
-    // Update user profile with display name
-    await updateProfile(user, {
-      displayName: namaUsaha
-    });
-
-    // Prepare user data
+    // Create comprehensive user document with default values
     const userData = {
-      namaUsaha,
-      email: user.email,
       uid: user.uid,
-      // Initial business data
-      businessStage: null,
-      points: 0,
-      completedChallenges: [],
-      recommendations: [],
+      email: user.email,
+      namaUsaha: namaUsaha || 'Bisnis Baru',
+
+      // Business profile defaults
+      businessProfile: {
+        businessName: namaUsaha || 'Bisnis Baru',
+        category: null,
+        stage: null,
+        location: null,
+        employeeCount: null,
+        monthlyRevenue: null,
+        challenges: [],
+        goals: [],
+        description: null
+      },
+
+      // User preferences
+      preferences: {
+        language: 'id',
+        notifications: true,
+        theme: 'light'
+      },
+
+      // Analytics
+      analytics: {
+        totalRecommendations: 0,
+        completedRecommendations: 0,
+        lastLoginAt: new Date().toISOString(),
+        registrationDate: new Date().toISOString()
+      },
+
+      // Status
+      isActive: true,
+      isEmailVerified: user.emailVerified || false,
+      onboardingCompleted: false
     };
 
-    // Try to save to Firestore (non-blocking)
-    const firestoreSuccess = await createUserDocument(user.uid, userData);
+    console.log('📄 Creating user document in Firestore...');
+    const documentCreated = await createUserDocument(user.uid, userData);
 
-    if (!firestoreSuccess) {
-      console.warn('⚠️ Firestore save failed, but registration continues');
+    if (documentCreated) {
+      console.log('✅ User document created successfully');
+    } else {
+      console.warn('⚠️ User document creation failed, but registration succeeded');
     }
 
-    // Return user object with additional data
-    const result = {
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName,
-      ...userData
+    // Return user with additional data
+    return {
+      ...user,
+      namaUsaha: namaUsaha,
+      documentCreated: documentCreated
     };
-
-    console.log('✅ User registration completed successfully');
-    return result;
 
   } catch (error) {
     console.error('❌ Registration error:', error);
@@ -70,41 +80,108 @@ export const registerUser = async (email, password, namaUsaha) => {
   }
 };
 
-/**
- * Login user with email and password
- * @param {string} email - User email
- * @param {string} password - User password
- * @returns {Object} User object with additional data from Firestore
- */
 export const loginUser = async (email, password) => {
   try {
-    console.log('🔄 Starting user login...');
-
-    // Sign in with Firebase Auth
+    console.log('🔄 Authenticating user...');
     const userCredential = await signInWithEmailAndPassword(auth, email, password);
     const user = userCredential.user;
 
-    console.log('✅ Firebase Auth login successful:', user.uid);
+    console.log('✅ User authenticated successfully:', user.uid);
 
-    // Try to get additional user data from Firestore (non-blocking)
-    const userData = await getUserDocument(user.uid);
+    // Check if user document exists
+    console.log('📄 Checking user document in Firestore...');
+    let userData = await getUserDocument(user.uid);
 
-    // Prepare result with fallback data
-    const result = {
-      uid: user.uid,
-      email: user.email,
-      displayName: user.displayName,
-      // Use Firestore data if available, otherwise use defaults
-      namaUsaha: userData?.namaUsaha || user.displayName || 'Pengguna',
-      businessStage: userData?.businessStage || null,
-      points: userData?.points || 0,
-      completedChallenges: userData?.completedChallenges || [],
-      recommendations: userData?.recommendations || [],
-      ...userData
+    if (!userData) {
+      console.log('📝 User document not found, creating default document...');
+
+      // Create default user document for existing users
+      const defaultUserData = {
+        uid: user.uid,
+        email: user.email,
+        namaUsaha: user.displayName || 'Bisnis Saya',
+
+        // Business profile defaults
+        businessProfile: {
+          businessName: user.displayName || 'Bisnis Saya',
+          category: null,
+          stage: null,
+          location: null,
+          employeeCount: null,
+          monthlyRevenue: null,
+          challenges: [],
+          goals: [],
+          description: null
+        },
+
+        // User preferences
+        preferences: {
+          language: 'id',
+          notifications: true,
+          theme: 'light'
+        },
+
+        // Analytics
+        analytics: {
+          totalRecommendations: 0,
+          completedRecommendations: 0,
+          lastLoginAt: new Date().toISOString(),
+          firstLoginAt: new Date().toISOString()
+        },
+
+        // Status
+        isActive: true,
+        isEmailVerified: user.emailVerified || false,
+        onboardingCompleted: false,
+
+        // Migration flag
+        migratedUser: true,
+        migrationDate: new Date().toISOString()
+      };
+
+      const documentCreated = await createUserDocument(user.uid, defaultUserData);
+
+      if (documentCreated) {
+        console.log('✅ Default user document created for existing user');
+        userData = defaultUserData;
+      } else {
+        console.warn('⚠️ Failed to create user document, using minimal data');
+        userData = {
+          uid: user.uid,
+          email: user.email,
+          namaUsaha: user.displayName || 'Bisnis Saya'
+        };
+      }
+    } else {
+      console.log('✅ User document found in Firestore');
+
+      // Update last login time
+      try {
+        const updatedAnalytics = {
+          ...userData.analytics,
+          lastLoginAt: new Date().toISOString()
+        };
+
+        // Update the document with new login time (non-blocking)
+        createUserDocument(user.uid, {
+          ...userData,
+          analytics: updatedAnalytics
+        }).catch(error => {
+          console.warn('⚠️ Failed to update last login time:', error);
+        });
+
+        userData.analytics = updatedAnalytics;
+      } catch (error) {
+        console.warn('⚠️ Error updating login time:', error);
+      }
+    }
+
+    // Return user with Firestore data
+    return {
+      ...user,
+      ...userData,
+      firestoreData: userData
     };
-
-    console.log('✅ User login completed successfully');
-    return result;
 
   } catch (error) {
     console.error('❌ Login error:', error);
@@ -112,52 +189,17 @@ export const loginUser = async (email, password) => {
   }
 };
 
-/**
- * Logout current user
- */
 export const logoutUser = async () => {
-  try {
-    await signOut(auth);
-  } catch (error) {
-    console.error('Logout error:', error);
-    throw error;
-  }
+  await signOut(auth);
 };
 
-/**
- * Get current user data from Firestore
- * @param {string} uid - User ID
- * @returns {Object} User data from Firestore
- */
-export const getUserData = async (uid) => {
+export const resetPassword = async (email) => {
   try {
-    const userDoc = await getDoc(doc(db, 'users', uid));
-    if (userDoc.exists()) {
-      return userDoc.data();
-    }
-    return null;
+    await sendPasswordResetEmail(auth, email);
+    console.log('✅ Password reset email sent successfully');
+    return true;
   } catch (error) {
-    console.error('Error getting user data:', error);
-    throw error;
-  }
-};
-
-/**
- * Update user data in Firestore
- * @param {string} uid - User ID
- * @param {Object} data - Data to update
- */
-export const updateUserData = async (uid, data) => {
-  try {
-    const updateData = {
-      ...data,
-      updatedAt: new Date().toISOString()
-    };
-
-    await setDoc(doc(db, 'users', uid), updateData, { merge: true });
-    return updateData;
-  } catch (error) {
-    console.error('Error updating user data:', error);
+    console.error('❌ Error sending password reset email:', error);
     throw error;
   }
 };
