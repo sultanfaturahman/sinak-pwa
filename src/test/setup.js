@@ -128,6 +128,19 @@ global.localStorage = localStorageMock;
 global.sessionStorage = localStorageMock;
 
 // Mock window.location
+if (typeof window === 'undefined') {
+  global.window = {};
+}
+if (typeof window.addEventListener !== 'function') {
+  window.addEventListener = jest.fn();
+  window.removeEventListener = jest.fn();
+}
+if (typeof document === 'undefined') {
+  global.document = {
+    readyState: 'complete',
+    addEventListener: jest.fn()
+  };
+}
 delete window.location;
 window.location = {
   href: 'http://localhost:3000',
