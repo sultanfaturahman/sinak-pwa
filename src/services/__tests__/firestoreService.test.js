@@ -5,7 +5,7 @@
 
 // Mock Firebase before importing the service
 jest.mock('firebase/firestore', () => ({
-  doc: jest.fn(),
+  doc: jest.fn(() => ({})),
   getDoc: jest.fn(),
   setDoc: jest.fn(),
   updateDoc: jest.fn(),
@@ -232,7 +232,7 @@ describe('FirestoreService - User Document Operations', () => {
   describe('updateRecommendationData', () => {
     it('should update recommendation data for small datasets', async () => {
       const mockTransaction = {
-        get: jest.fn().mockResolvedValue({ 
+        get: jest.fn().mockResolvedValue({
           exists: () => true,
           data: () => ({ uid: 'test-user-123' })
         }),
@@ -250,6 +250,24 @@ describe('FirestoreService - User Document Operations', () => {
       const result = await updateRecommendationData('test-user-123', recommendations);
 
       expect(result).toBe(true);
+    });
+
+    it('should return false and avoid partial writes when transaction fails', async () => {
+      const transactionFns = [];
+      runTransaction.mockImplementation((db, transactionFn) => {
+        transactionFns.push(jest.fn(transactionFn));
+        return Promise.reject(new Error('Transaction failed'));
+      });
+
+      const recommendations = [
+        { id: 'rec-1', title: 'Test Recommendation' }
+      ];
+
+      const result = await updateRecommendationData('test-user-123', { recommendations });
+
+      expect(result).toBe(false);
+      expect(runTransaction).toHaveBeenCalledTimes(3);
+      transactionFns.forEach(fn => expect(fn).not.toHaveBeenCalled());
     });
 
     it('should handle large datasets with batch operations', async () => {
@@ -270,7 +288,7 @@ describe('FirestoreService - User Document Operations', () => {
       const { writeBatch } = require('firebase/firestore');
       writeBatch.mockReturnValue(mockBatch);
 
-      const result = await updateRecommendationData('test-user-123', largeRecommendations);
+      const result = await updateRecommendationData('test-user-123', { recommendations: largeRecommendations });
 
       expect(result).toBe(true);
       expect(writeBatch).toHaveBeenCalled();
