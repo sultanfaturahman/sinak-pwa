@@ -6,6 +6,7 @@ import DiagnosisView from '../views/DiagnosisView.vue';
 import RecommendationView from '../views/RecommendationView.vue';
 import BookmarkView from '../views/BookmarkView.vue';
 import NotFoundView from '../views/NotFoundView.vue';
+import FinanceReportView from '../views/FinanceReportView.vue';
 import { useAuthStore } from '../store/auth';
 
 const routes = [
@@ -35,6 +36,12 @@ const routes = [
     path: '/recommendations',
     name: 'Recommendations',
     component: RecommendationView,
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/finance',
+    name: 'Finance',
+    component: FinanceReportView,
     meta: { requiresAuth: true },
   },
   {

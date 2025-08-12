@@ -349,6 +349,10 @@ const attemptEnhancedAI = async (businessProfile, diagnosisData) => {
  */
 export const generateAIRecommendations = async (businessProfile, diagnosisData) => {
   try {
+    if (!businessProfile || !diagnosisData) {
+      console.warn('Missing business profile or diagnosis data, using rule-based recommendations');
+      return generateRuleBasedRecommendations(businessProfile || {});
+    }
     console.log('🤖 Starting AI recommendation generation process...');
     console.log('🔍 DEBUG: businessProfile:', businessProfile);
     console.log('🔍 DEBUG: diagnosisData:', diagnosisData);
