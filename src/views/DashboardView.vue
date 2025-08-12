@@ -126,9 +126,24 @@
               >
                 🔒 Selesaikan Diagnosis Dulu
               </button>
+          </div>
+        </div>
+
+          <div class="action-card">
+            <div class="card-header">
+              <div class="card-icon">📑</div>
+            </div>
+            <div class="card-content">
+              <h3>Laporan Keuangan</h3>
+              <p>Catat pemasukan dan pengeluaran harian Anda</p>
+            </div>
+            <div class="card-actions">
+              <router-link to="/finance" class="btn btn-primary">
+                📑 Input Laporan
+              </router-link>
             </div>
           </div>
-          
+
           <div class="action-card" :class="{ 'card-disabled': !currentStage }">
             <div class="card-header">
               <div class="card-icon">🎯</div>
